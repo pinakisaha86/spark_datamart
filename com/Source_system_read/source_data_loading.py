@@ -54,17 +54,8 @@ if __name__ == '__main__':
 
 # spark-submit --packages "org.mongodb.spark:mongo-spark-connector_2.11:2.4.1" dataframe/ingestion/others/systems/mongo_df.py
 #read data from sftp, create data frame out of it and write it into aws s3 bucket
- ol_txn_df = spark.read\
-        .format("com.springml.spark.sftp")\
-        .option("host", app_secret["sftp_conf"]["hostname"])\
-        .option("port", app_secret["sftp_conf"]["port"])\
-        .option("username", app_secret["sftp_conf"]["username"])\
-        .option("pem", os.path.abspath(current_dir + "/../../../../" + app_secret["sftp_conf"]["pem"]))\
-        .option("fileType", "csv")\
-        .option("delimiter", "|")\
-        .load(app_conf["sftp_conf"]["directory"] + "/receipts_delta_GBR_14_10_2017.csv")
+ ol_txn_df = read_from_sftp(spark, app_secret, app_conf, os, current_dir)
         .withcolumn('inst_dt', current_date())
-
 
     ol_txn_df.show(5, False)
     ol_txn_df.write.parquet('s3://' +s3_bucket + '/folder')

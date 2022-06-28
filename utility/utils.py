@@ -11,7 +11,16 @@ def read_from_mysql(spark, jdbc_params):
 def read_from_mongodb():
     return df
 
-def read_from_sftp():
+def read_from_sftp(spark, app_secret, app_conf, os, current_dir):
+    df = spark.read\
+        .format("com.springml.spark.sftp")\
+        .option("host", app_secret["sftp_conf"]["hostname"])\
+        .option("port", app_secret["sftp_conf"]["port"])\
+        .option("username", app_secret["sftp_conf"]["username"])\
+        .option("pem", os.path.abspath(current_dir + "/../../../../" + app_secret["sftp_conf"]["pem"]))\
+        .option("fileType", "csv")\
+        .option("delimiter", "|")\
+        .load(app_conf["sftp_conf"]["directory"] + "/receipts_delta_GBR_14_10_2017.csv")
     return df
 
 def read_from_s3():
