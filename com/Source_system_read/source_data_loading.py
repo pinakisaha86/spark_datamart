@@ -2,7 +2,7 @@ from pyspark.sql import *
 from pyspark.sql functions import *
 import yaml
 import os.path
-import utils.aws_utils as ut
+from com.utility.utils import *
 
 if __name__ == '__main__':
 
@@ -46,11 +46,7 @@ if __name__ == '__main__':
 
 
     print("\nReading data from MySQL DB using SparkSession.read.format(),")
-    txn_df = spark\
-        .read.format("jdbc")\
-        .option("driver", "com.mysql.cj.jdbc.Driver")\
-        .options(**jdbc_params)\
-        .load()
+    txn_df = read_from_mysql(spark, jdbc_params)
         .withcolumn('ins_dt', current_date())
 
     txn_df.show()
