@@ -28,49 +28,57 @@ if __name__ == '__main__':
     app_secret = yaml.load(secret, Loader=yaml.FullLoader)
 
     s3_bucket= app_conf['s3_conf']['s3_bucket']
-    # Setup spark to use s3
-    hadoop_conf = spark.sparkContext._jsc.hadoopConfiguration()
-    hadoop_conf.set("fs.s3a.access.key", app_secret["s3_conf"]["access_key"])
-    hadoop_conf.set("fs.s3a.secret.key", app_secret["s3_conf"]["secret_access_key"])
+    staging_loc= app_conf['s3_conf']['staging_loc']
 
-# read data from mysql, create data frame out of it and write it into aws s3 bucket
-    jdbc_params = {"url": ut.get_mysql_jdbc_url(app_secret),
-                  "lowerBound": "1",
-                  "upperBound": "100",
-                  "dbtable": app_conf["mysql_conf"]["dbtable"],
-                  "numPartitions": "2",
-                  "partitionColumn": app_conf["mysql_conf"]["partition_column"],
-                  "user": app_secret["mysql_conf"]["username"],
-                  "password": app_secret["mysql_conf"]["password"]
-                   }
+    src_list= app_conf['src_list']
+    for src in src_list:
+        src_conf = app_conf[src]
+        if src =='SB':
+
+            # read data from mysql, create data frame out of it and write it into aws s3 bucket
+                jdbc_params = {"url": ut.get_mysql_jdbc_url(app_secret),
+                              "lowerBound": "1",
+                              "upperBound": "100",
+                              "dbtable": app_conf["mysql_conf"]["dbtable"],
+                              "numPartitions": "2",
+                              "partitionColumn": app_conf["mysql_conf"]["partition_column"],
+                              "user": app_secret["mysql_conf"]["username"],
+                              "password": app_secret["mysql_conf"]["password"]
+                               }
 
 
-    print("\nReading data from MySQL DB using SparkSession.read.format(),")
-    txn_df = read_from_mysql(spark, jdbc_params)
-        .withcolumn('ins_dt', current_date())
+                print("\nReading data from MySQL DB using SparkSession.read.format(),")
+                txn_df = read_from_mysql(spark, jdbc_params)
+                    .withcolumn('ins_dt', current_date())
 
-    txn_df.show()
-    txn_df.write.parquet('s3://' +s3_bucket + '/folder')
+                txn_df.show()
+                txn_df.write \
+                    .partitionBy('ins_dt') \
+                    .mode('append') \
+                    .parquet('s3://' + s3_bucket+ '/' +staging_loc + '/' + src)
+        elif src =='OL':
 
-# spark-submit --packages "org.mongodb.spark:mongo-spark-connector_2.11:2.4.1" dataframe/ingestion/others/systems/mongo_df.py
-#read data from sftp, create data frame out of it and write it into aws s3 bucket
- ol_txn_df = read_from_sftp(spark, app_secret, app_conf, os, current_dir)
-        .withcolumn('inst_dt', current_date())
+            #read data from sftp, create data frame out of it and write it into aws s3 bucket
+             ol_txn_df = read_from_sftp(spark, app_secret, app_conf, os, current_dir)
+                    .withcolumn('inst_dt', current_date())
 
-    ol_txn_df.show(5, False)
-    ol_txn_df.write.parquet('s3://' +s3_bucket + '/folder')
+                ol_txn_df.show(5, False)
+                ol_txn_df.write \
+                        .partiotionBy(inst_dt) \
+                        .mode('append') \
+                        .parquet('s3://' + s3_bucket+ '/' +staging_loc + '/' + src)
 
-# read data from mongodb, create data frame out of it and write it into aws s3 bucket
-    students = spark\
-        .read\
-        .format("com.mongodb.spark.sql.DefaultSource")\
-        .option("database", app_conf["mongodb_config"]["database"])\
-        .option("collection", app_conf["mongodb_config"]["collection"])\
-        .load()
-        .withcolumn('inst_dt', current_date())
+        elif src == 'ADDR':
 
-    students.show()
-    student.write.parquet('s3://' +s3_bucket = '/folder')
+            # read data from mongodb, create data frame out of it and write it into aws s3 bucket
+                students = read_from_mongodb(spark, app_conf)
+                    .withcolumn('inst_dt', current_date())
+
+                students.show()
+                student.write \
+                    .partitionBy('ins_dt') \
+                    .mode('append') \
+                    .parquet('s3://' + s3_bucket+ '/' +staging_loc + '/' + src)
 
 #read data from redshift, create data frame out of it and write it into aws s3 bucket
 print("Reading txn_fact table ingestion AWS Redshift and creating Dataframe,")
@@ -87,7 +95,7 @@ print("Reading txn_fact table ingestion AWS Redshift and creating Dataframe,")
         .withcolumn('inst_dt', current_date())
 
     red_df.show(5, False)
-    red_df.write.parquet('s3://' +s3_bucket = '/folder')
+    red_df.write.parquet('s3://' + s3_bucket+ '/' +staging_loc + '/' + src)
 
 
 # read data from s3, create data frame out of it and write it into aws s3 bucket

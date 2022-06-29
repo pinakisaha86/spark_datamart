@@ -8,7 +8,13 @@ def read_from_mysql(spark, jdbc_params):
         .load()
     return df
 
-def read_from_mongodb():
+def read_from_mongodb(spark, app_conf):
+    df = spark\
+        .read\
+        .format("com.mongodb.spark.sql.DefaultSource")\
+        .option("database", app_conf["mongodb_config"]["database"])\
+        .option("collection", app_conf["mongodb_config"]["collection"])\
+        .load()
     return df
 
 def read_from_sftp(spark, app_secret, app_conf, os, current_dir):
